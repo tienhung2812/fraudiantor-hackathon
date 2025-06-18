@@ -648,6 +648,162 @@ class FraudDetector {
         if (score < 60) return 'HIGH';
         return 'CRITICAL';
     }
+
+    // RDP/VM Detection Methods
+    checkScreenProperties() {
+        const screenWidth = window.screen.width;
+        const screenHeight = window.screen.height;
+        const colorDepth = window.screen.colorDepth;
+        const devicePixelRatio = window.devicePixelRatio;
+
+        let suspicion = 'Normal';
+        const factors = [];
+
+        if (colorDepth < 24) {
+            suspicion = 'Suspicious';
+            factors.push(`Low Color Depth (${colorDepth} bits)`);
+        }
+
+        if (devicePixelRatio < 1 && devicePixelRatio <= 0.75) {
+            suspicion = 'Suspicious';
+            factors.push(`Unusual Device Pixel Ratio (${devicePixelRatio})`);
+        }
+
+        if ((screenWidth < 1024 || screenHeight < 768) && (screenWidth > 0 && screenHeight > 0)) {
+            suspicion = 'Suspicious';
+            factors.push(`Very Small Resolution (${screenWidth}x${screenHeight})`);
+        }
+
+        const aspectRatio = screenWidth / screenHeight;
+        const commonAspectRatios = [16 / 9, 16 / 10, 4 / 3, 5 / 4];
+        let isCommonAspectRatio = false;
+        for (const commonRatio of commonAspectRatios) {
+            if (Math.abs(aspectRatio - commonRatio) < 0.01) {
+                isCommonAspectRatio = true;
+                break;
+            }
+        }
+        if (!isCommonAspectRatio) {
+            suspicion = 'Suspicious';
+            factors.push(`Uncommon Aspect Ratio (${aspectRatio.toFixed(2)})`);
+        }
+
+        return {
+            data: { width: screenWidth, height: screenHeight, colorDepth: colorDepth, devicePixelRatio: devicePixelRatio },
+            suspicion: suspicion,
+            factors: factors
+        };
+    }
+
+    checkWebGLRenderer() {
+        let rendererString = 'Not available';
+        let suspicion = 'Normal';
+        const factors = [];
+
+        try {
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('webgl2');
+            if (gl) {
+                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                if (debugInfo) {
+                    rendererString = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL).toLowerCase();
+                    const suspiciousKeywords = [
+                        'vmware', 'virtualbox', 'mesa offscreen', 'microsoft basic render driver',
+                        'rdp display miniport', 'qemu', 'llvmpipe', 'software renderer',
+                        'parsec', 'anydesk', 'teamviewer', 'chrome remote desktop', 'google gfx',
+                        'virtual', 'remotefx'
+                    ];
+
+                    for (const keyword of suspiciousKeywords) {
+                        if (rendererString.includes(keyword)) {
+                            suspicion = 'Suspicious';
+                            factors.push(`WebGL contains '${keyword}'`);
+                        }
+                    }
+                } else {
+                    rendererString = 'WEBGL_debug_renderer_info not available';
+                }
+            } else {
+                rendererString = 'WebGL not supported';
+            }
+        } catch (e) {
+            rendererString = `Error: ${e.message}`;
+            suspicion = 'Could not determine';
+            factors.push(`Error: ${e.message}`);
+        }
+
+        return { data: rendererString, suspicion: suspicion, factors: factors };
+    }
+
+    checkNavigatorProperties() {
+        const userAgent = navigator.userAgent;
+        const platform = navigator.platform;
+        const hardwareConcurrency = navigator.hardwareConcurrency;
+        const maxTouchPoints = navigator.maxTouchPoints;
+
+        let suspicion = 'Normal';
+        const factors = [];
+
+        const uaSuspiciousKeywords = [
+            'headlesschrome', 'phantomjs', 'selenium', 'puppeteer', 'electron',
+            'rdp', 'remotedesktop', 'anydesk', 'teamviewer', 'vmware', 'virtualbox', 'qemu'
+        ];
+
+        for (const keyword of uaSuspiciousKeywords) {
+            if (userAgent.toLowerCase().includes(keyword.toLowerCase())) {
+                suspicion = 'Suspicious';
+                factors.push(`User Agent contains '${keyword}'`);
+            }
+        }
+
+        if (hardwareConcurrency && hardwareConcurrency < 2) {
+            suspicion = 'Suspicious';
+            factors.push(`Low Hardware Concurrency (${hardwareConcurrency} cores)`);
+        }
+
+        return {
+            data: { userAgent: userAgent, platform: platform, hardwareConcurrency: hardwareConcurrency, maxTouchPoints: maxTouchPoints },
+            suspicion: suspicion,
+            factors: factors
+        };
+    }
+
+    getOverallRDPSuspicion(screenResult, webglResult, navigatorResult) {
+        let totalSuspicionPoints = 0;
+        const contributingFactors = [];
+
+        if (screenResult.suspicion === 'Suspicious') {
+            totalSuspicionPoints += 2;
+            contributingFactors.push(...screenResult.factors.map(f => `Screen: ${f}`));
+        }
+        if (webglResult.suspicion === 'Suspicious') {
+            totalSuspicionPoints += 3;
+            contributingFactors.push(...webglResult.factors.map(f => `WebGL: ${f}`));
+        }
+        if (navigatorResult.suspicion === 'Suspicious') {
+            totalSuspicionPoints += 2;
+            contributingFactors.push(...navigatorResult.factors.map(f => `Navigator: ${f}`));
+        }
+
+        let overallLevel = 'Low';
+        let type = 'authentic';
+
+        if (totalSuspicionPoints >= 3) {
+            overallLevel = 'Medium';
+            type = 'suspicious';
+        }
+        if (totalSuspicionPoints >= 5) {
+            overallLevel = 'High';
+            type = 'fake';
+        }
+
+        return {
+            level: overallLevel,
+            type: type,
+            score: totalSuspicionPoints,
+            factors: contributingFactors.length > 0 ? contributingFactors : ['No significant indicators detected.']
+        };
+    }
 }
 
 // UI Controller
@@ -695,6 +851,9 @@ class UIController {
 
             // Perform analysis
             const analysis = await this.detector.performFullAnalysis();
+            
+            // Perform RDP/VM analysis
+            this.performRDPAnalysis();
             
             // Display results
             this.displayResults(analysis);
@@ -852,6 +1011,82 @@ class UIController {
                 
                 locationStatus.innerHTML = updatedHTML;
                 locationResult.className = 'result-card status-fake';
+            }
+        }
+    }
+
+    performRDPAnalysis() {
+        // Run RDP/VM detection checks
+        const screenResult = this.detector.checkScreenProperties();
+        const webglResult = this.detector.checkWebGLRenderer();
+        const navigatorResult = this.detector.checkNavigatorProperties();
+        const overallRdp = this.detector.getOverallRDPSuspicion(screenResult, webglResult, navigatorResult);
+
+        // Update RDP result cards
+        this.updateRDPResultCard('screenResult', 'screenStatus', 'screenDetails', screenResult);
+        this.updateRDPResultCard('webglResult', 'webglStatus', 'webglDetails', webglResult);
+        this.updateRDPResultCard('navigatorResult', 'navigatorStatus', 'navigatorDetails', navigatorResult);
+        
+        // Update overall RDP result
+        this.updateOverallRDPResult(overallRdp);
+    }
+
+    updateRDPResultCard(resultId, statusId, detailsId, result) {
+        const resultCard = document.getElementById(resultId);
+        const statusEl = document.getElementById(statusId);
+        const detailsEl = document.getElementById(detailsId);
+
+        if (statusEl) {
+            statusEl.textContent = result.suspicion;
+        }
+
+        if (detailsEl) {
+            if (typeof result.data === 'string') {
+                detailsEl.textContent = result.data;
+            } else {
+                detailsEl.textContent = JSON.stringify(result.data, null, 2);
+            }
+        }
+
+        if (resultCard) {
+            // Apply styling based on suspicion level
+            resultCard.classList.remove('status-authentic', 'status-suspicious', 'status-fake');
+            if (result.suspicion === 'Normal') {
+                resultCard.classList.add('status-authentic');
+            } else if (result.suspicion === 'Suspicious') {
+                resultCard.classList.add('status-suspicious');
+            } else {
+                resultCard.classList.add('status-fake');
+            }
+        }
+    }
+
+    updateOverallRDPResult(overallRdp) {
+        const overallRdpResult = document.getElementById('overallRdpResult');
+        const overallRdpStatus = document.getElementById('overallRdpStatus');
+        const overallRdpFactors = document.getElementById('overallRdpFactors');
+
+        if (overallRdpStatus) {
+            overallRdpStatus.textContent = `Suspicion Level: ${overallRdp.level}`;
+        }
+
+        if (overallRdpFactors) {
+            overallRdpFactors.innerHTML = '';
+            overallRdp.factors.forEach(factor => {
+                const li = document.createElement('li');
+                li.textContent = factor;
+                overallRdpFactors.appendChild(li);
+            });
+        }
+
+        if (overallRdpResult) {
+            overallRdpResult.classList.remove('status-authentic', 'status-suspicious', 'status-fake');
+            if (overallRdp.type === 'authentic') {
+                overallRdpResult.classList.add('status-authentic');
+            } else if (overallRdp.type === 'suspicious') {
+                overallRdpResult.classList.add('status-suspicious');
+            } else if (overallRdp.type === 'fake') {
+                overallRdpResult.classList.add('status-fake');
             }
         }
     }
