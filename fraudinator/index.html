@@ -179,6 +179,10 @@
             <strong>⚠️ Privacy Notice:</strong> This tool analyzes your browser environment and location data to detect potential fraud indicators. No data is stored or transmitted.
         </div>
 
+        <div class="warning" style="background: #e3f2fd; border-color: #2196f3; color: #1565c0;">
+            <strong>💡 RDP/VM Detection Notice:</strong> The RDP/VM detection uses client-side heuristics and may produce false positives or negatives. It identifies patterns commonly associated with remote/virtual environments but is not definitive proof.
+        </div>
+
         <button id="locateBtn" class="locate-btn">🎯 Locate Me</button>
 
         <div id="loading" class="loading">
@@ -200,6 +204,32 @@
             <div id="environmentResult" class="result-card">
                 <div class="result-title">💻 Environment Analysis</div>
                 <div class="result-value" id="environmentStatus"></div>
+            </div>
+
+            <h2 style="color: #333; margin-top: 25px; margin-bottom: 15px; font-size: 1.8em; font-weight: 600;">🖥️ RDP/VM Detection Analysis</h2>
+
+            <div id="screenResult" class="result-card">
+                <div class="result-title">📊 Screen Properties</div>
+                <div class="result-value" id="screenStatus"></div>
+                <pre id="screenDetails" style="background: #e9ecef; padding: 10px; border-radius: 5px; font-size: 0.85em; margin-top: 10px; overflow-x: auto; white-space: pre-wrap;"></pre>
+            </div>
+
+            <div id="webglResult" class="result-card">
+                <div class="result-title">🎨 WebGL Renderer</div>
+                <div class="result-value" id="webglStatus"></div>
+                <pre id="webglDetails" style="background: #e9ecef; padding: 10px; border-radius: 5px; font-size: 0.85em; margin-top: 10px; overflow-x: auto; white-space: pre-wrap;"></pre>
+            </div>
+
+            <div id="navigatorResult" class="result-card">
+                <div class="result-title">🌐 Navigator Properties</div>
+                <div class="result-value" id="navigatorStatus"></div>
+                <pre id="navigatorDetails" style="background: #e9ecef; padding: 10px; border-radius: 5px; font-size: 0.85em; margin-top: 10px; overflow-x: auto; white-space: pre-wrap;"></pre>
+            </div>
+
+            <div id="overallRdpResult" class="result-card">
+                <div class="result-title">🚨 Overall RDP/VM Suspicion</div>
+                <div class="result-value" id="overallRdpStatus"></div>
+                <ul id="overallRdpFactors" style="list-style-type: disc; margin-left: 20px; margin-top: 10px;"></ul>
             </div>
 
             <div id="detailsResult" class="details">
