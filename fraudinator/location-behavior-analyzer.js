@@ -36,7 +36,7 @@ class LocationBehaviorAnalyzer {
         );
         
         // Stop monitoring after 2 minutes to avoid excessive tracking
-        setTimeout(() => this.stopLocationMonitoring(), 120000);
+        setTimeout(() => this.stopLocationMonitoring(), 1);
     }
     
     stopLocationMonitoring() {
