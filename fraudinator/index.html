@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fraudinator - Advanced Detector</title>
-    <!-- Tailwind CSS CDN (Optional: Removed as per original HTML's explicit custom CSS preference) -->
-    <!-- Leaflet CSS for Map -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    <title>Fraudinator - Location & Environment Detector</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
           crossorigin="" />
     <style>
         * {
@@ -49,6 +47,31 @@
             font-size: 1.1em;
         }
 
+        .locate-btn {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2em;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(238, 90, 36, 0.3);
+            margin-bottom: 30px;
+        }
+
+        .locate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(238, 90, 36, 0.4);
+        }
+
+        .locate-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
         .results {
             display: none;
             text-align: left;
@@ -74,6 +97,7 @@
             color: #666;
             font-size: 1em;
         }
+
         .status-authentic {
             border-left-color: #28a745;
         }
@@ -144,76 +168,18 @@
             color: #333;
             border-bottom: 1px solid #dee2e6;
         }
-
-        .details pre {
-            background: #e9ecef; /* Match the .details background */
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 0.85em; /* Slightly smaller font for raw data */
-            color: #495057;
-            overflow-x: auto; /* Allow horizontal scrolling for long strings */
-            white-space: pre-wrap; /* Wrap long lines */
-        }
-        .details ul {
-            list-style-type: disc;
-            margin-left: 20px;
-            margin-top: 10px;
-        }
-
-        /* Style for the new RDP disclaimer, similar to existing .warning */
-        .rdp-disclaimer {
-            background: #e0f2f7; /* Light blue */
-            border: 1px solid #b3e5fc; /* Slightly darker blue border */
-            color: #01579b; /* Dark blue text */
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        /* New button class to replace locate-btn's functionality without breaking its styling */
-        .detect-btn {
-            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
-            color: white;
-            border: none;
-            padding: 15px 40px;
-            font-size: 1.2em;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(238, 90, 36, 0.3);
-            margin-bottom: 30px;
-        }
-
-        .detect-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(238, 90, 36, 0.4);
-        }
-
-        .detect-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🔍 Fraudinator</h1>
         <p class="subtitle">Advanced Location & Environment Authentication</p>
-
+        
         <div class="warning">
             <strong>⚠️ Privacy Notice:</strong> This tool analyzes your browser environment and location data to detect potential fraud indicators. No data is stored or transmitted.
         </div>
 
-        <!-- NEW RDP/VM DISCLAIMER -->
-        <div class="rdp-disclaimer">
-            <strong>💡 RDP/VM Detection Disclaimer:</strong> This detection relies on client-side heuristics and is not definitive proof of RDP/VM usage. It can identify patterns commonly associated with virtualized or remote environments but may produce false positives or negatives due to varying system configurations and browser implementations. Direct detection of specific software like AnyDesk or TeamViewer is generally not possible from a web browser due to security restrictions.
-        </div>
-        <!-- END NEW RDP/VM DISCLAIMER -->
-
-        <button id="detectBtn" class="detect-btn">🎯 Start Detection</button>
+        <button id="locateBtn" class="locate-btn">🎯 Locate Me</button>
 
         <div id="loading" class="loading">
             <div class="spinner"></div>
@@ -236,46 +202,19 @@
                 <div class="result-value" id="environmentStatus"></div>
             </div>
 
-            <h2 style="color: #333; margin-top: 25px; margin-bottom: 15px; font-size: 1.8em; font-weight: 600;">🖥️ Environment (RDP/VM) Analysis</h2>
-
-            <div id="screenResult" class="result-card">
-                <div class="result-title">📊 Screen Properties</div>
-                <div class="result-value" id="screenStatus"></div>
-                <pre id="screenDetails"></pre>
-            </div>
-
-            <div id="webglResult" class="result-card">
-                <div class="result-title">🎨 WebGL Renderer</div>
-                <div class="result-value" id="webglStatus"></div>
-                <pre id="webglDetails"></pre>
-            </div>
-
-            <div id="navigatorResult" class="result-card">
-                <div class="result-title">🌐 Navigator Properties</div>
-                <div class="result-value" id="navigatorStatus"></div>
-                <pre id="navigatorDetails"></pre>
-            </div>
-
-            <div id="overallRdpResult" class="result-card">
-                <div class="result-title">🚨 Overall RDP/VM Suspicion</div>
-                <div class="result-value" id="overallRdpStatus"></div>
-                <ul id="overallRdpFactors"></ul>
-            </div>
-
             <div id="detailsResult" class="details">
-                <strong>Detection Details (Raw Data):</strong>
-                <pre id="detectionDetails"></pre>
+                <strong>Detection Details:</strong>
+                <div id="detectionDetails"></div>
             </div>
         </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" 
             crossorigin=""></script>
     <script src="location-behavior-analyzer.js"></script>
     <script src="extension-detector.js"></script>
     <script src="devtools-detector.js"></script>
     <script src="script.js"></script>
-    <script src="rdp-detector.js"></script>
 </body>
 </html>
