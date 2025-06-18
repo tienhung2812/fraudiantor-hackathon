@@ -264,12 +264,37 @@ class DeviceDataMaskingDetector {
             this.indicators.push('Unusually high device memory reported');
         }
 
-        // 6. Screen Resolution Inconsistency
-        if (Math.abs(screen.width - window.innerWidth) > 200 || Math.abs(screen.height - window.innerHeight) > 200) {
-            if (!this.indicators.some(i => i.includes('DevTools'))) {
-                this.score += 5;
-                this.indicators.push('Significant difference between screen and window resolution');
-            }
+        // 6. Screen Resolution Inconsistency - Check for suspicious screen properties
+        // Compare with outerWidth/outerHeight instead of innerWidth/innerHeight
+        // and look for more specific VM/RDP indicators
+        const screenAspectRatio = screen.width / screen.height;
+        const windowAspectRatio = window.outerWidth / window.outerHeight;
+        
+        // Check for very low screen resolutions that might indicate VMs
+        if (screen.width < 800 || screen.height < 600) {
+            this.score += 10;
+            this.indicators.push(`Very low screen resolution detected: ${screen.width}x${screen.height}`);
+        }
+        
+        // Check for unusual aspect ratios
+        const commonAspectRatios = [16/9, 16/10, 4/3, 5/4, 21/9];
+        const hasCommonAspectRatio = commonAspectRatios.some(ratio => 
+            Math.abs(screenAspectRatio - ratio) < 0.1
+        );
+        
+        if (!hasCommonAspectRatio && screen.width > 0 && screen.height > 0) {
+            this.score += 5;
+            this.indicators.push(`Unusual screen aspect ratio: ${screenAspectRatio.toFixed(2)}`);
+        }
+        
+        // Check for exact matches with common VM resolutions
+        const commonVMResolutions = [
+            '1024x768', '800x600', '1280x720', '1366x768'
+        ];
+        const currentResolution = `${screen.width}x${screen.height}`;
+        if (commonVMResolutions.includes(currentResolution) && screen.colorDepth <= 16) {
+            this.score += 8;
+            this.indicators.push(`VM-typical resolution with low color depth: ${currentResolution}`);
         }
         
         // 7. Timezone check
