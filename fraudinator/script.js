@@ -616,18 +616,14 @@ class FraudDetector {
                                    (locationAnalysis.spoofingScore || 0) +
                                    (this.environmentData.devToolsScore || 0) +
                                    (this.environmentData.consoleOverrideScore || 0) +
-                                   (this.environmentData.extensionScore || 0) +
-                                   (this.environmentData.maskingScore || 0) +
-                                   (this.environmentData.vpnScore || 0);
+                                   (this.environmentData.maskingScore || 0);
             // Combine all indicators with safe defaults
             const allIndicators = [
                 ...(locationAnalysis.spoofingIndicators || []),
                 ...(envData.rdpIndicators || []),
                 ...(this.environmentData.devToolsIndicators || []),
                 ...(this.environmentData.consoleOverrides || []),
-                ...(this.environmentData.extensionIndicators || []),
-                ...(this.environmentData.maskingIndicators || []),
-                ...(this.environmentData.vpnIndicators || [])
+                ...(this.environmentData.maskingIndicators || [])
             ];
             
             return {
@@ -947,12 +943,9 @@ class UIController {
 
         const envType = analysis.environment.isRemoteDesktop ? 'REMOTE DESKTOP DETECTED' : 'LOCAL DESKTOP';
         const devToolsStatus = analysis.devTools.detected ? '⚠️ DEV TOOLS DETECTED' : '✅ No Dev Tools';
-        const extensionStatus = analysis.extensions.detected ? '⚠️ EXTENSIONS DETECTED' : '✅ No Extensions';
         const consoleStatus = analysis.console.overridden ? '⚠️ CONSOLE OVERRIDE' : '✅ Console Normal';
         const maskingStatus = analysis.deviceMasking.detected ? '⚠️ DEVICE MASKING' : '✅ Device Masking Normal';
-        const vpnStatus = analysis.vpn.detected ? 
-            `🚨 VPN DETECTED${analysis.vpn.provider ? ` (${analysis.vpn.provider})` : ''}` : 
-            '✅ No VPN';
+        
         environmentStatus.innerHTML = `
             <strong>${envType}</strong><br>
             Platform: ${analysis.environment.platform}<br>
@@ -960,16 +953,14 @@ class UIController {
             Timezone: ${analysis.environment.timezone}<br><br>
             <strong>Advanced Detection:</strong><br>
             ${devToolsStatus}<br>
-            ${extensionStatus}<br>
             ${consoleStatus}<br>
-            ${maskingStatus}<br>
-            ${vpnStatus}
+            ${maskingStatus}
         `;
 
         // Apply appropriate styling based on overall risk
-        const hasHighRisk = analysis.devTools.detected || analysis.extensions.detected || 
+        const hasHighRisk = analysis.devTools.detected || 
                            analysis.console.overridden || analysis.location.isSpoofed || 
-                           analysis.deviceMasking.detected || analysis.vpn.detected;
+                           analysis.deviceMasking.detected;
         locationResult.className = `result-card ${this.getStatusClass(analysis.location.isSpoofed)}`;
         environmentResult.className = `result-card ${this.getStatusClass(hasHighRisk)}`;
 
@@ -978,10 +969,8 @@ class UIController {
             • Location Spoofing: ${analysis.location.spoofingScore} points<br>
             • Remote Desktop: ${analysis.environment.rdpScore} points<br>
             • Developer Tools: ${analysis.devTools.score} points<br>
-            • Extension Detection: ${analysis.extensions.score} points<br>
             • Console Override: ${analysis.console.score} points<br>
             • Device Masking: ${analysis.deviceMasking.score} points<br>
-            • VPN Detection: ${analysis.vpn.score} points<br>
         `;
 
         detectionDetails.innerHTML = `
