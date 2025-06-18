@@ -949,7 +949,7 @@ class UIController {
         const devToolsStatus = analysis.devTools.detected ? '⚠️ DEV TOOLS DETECTED' : '✅ No Dev Tools';
         const extensionStatus = analysis.extensions.detected ? '⚠️ EXTENSIONS DETECTED' : '✅ No Extensions';
         const consoleStatus = analysis.console.overridden ? '⚠️ CONSOLE OVERRIDE' : '✅ Console Normal';
-        const maskingStatus = analysis.deviceMasking.detected ? '⚠️ DEVICE MASKING' : '✅ Device Normal';
+        const maskingStatus = analysis.deviceMasking.detected ? '⚠️ DEVICE MASKING' : '✅ Device Masking Normal';
         const vpnStatus = analysis.vpn.detected ? 
             `🚨 VPN DETECTED${analysis.vpn.provider ? ` (${analysis.vpn.provider})` : ''}` : 
             '✅ No VPN';

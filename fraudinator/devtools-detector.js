@@ -16,6 +16,11 @@ function setupConsoleDetection() {
   });
 }
 
+// Returns true if the current device is a mobile device, false otherwise
+function isMobileDevice() {
+  return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
 // Console detection check
 function checkConsoleDetection() {
   if (!consoleDetectionElement) {
@@ -92,7 +97,10 @@ function setupKeyboardDetection() {
 function detectDevTools() {
   // Use both methods for maximum reliability
   checkConsoleDetection();
-  checkDimensionDetection();
+  if (!isMobileDevice()) {
+    // Only check dimensions if not on a mobile device
+    checkDimensionDetection();
+  }
 }
 
 // Handle DevTools detection
