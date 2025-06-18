@@ -65,6 +65,39 @@ function detectDockedDevTools() {
   return false;
 }
 
+/**
+ * Checks if the navigator.geolocation API has been overridden by a script.
+ * @returns {boolean|string} Returns `true` if overridden, `false` if native, 
+ * or "Not Supported" if the API doesn't exist.
+ */
+function isGeolocationOverridden() {
+  // First, check if the Geolocation API is even supported.
+  if (!navigator.geolocation) {
+    console.warn("Geolocation API is not supported in this browser or context.");
+    return "Not Supported";
+  }
+
+  // An array of the core geolocation functions to check.
+  const funcsToCheck = [
+    navigator.geolocation.getCurrentPosition,
+    navigator.geolocation.watchPosition,
+    navigator.geolocation.clearWatch
+  ];
+
+  // Loop through each function and check its string representation.
+  for (const func of funcsToCheck) {
+    // Native browser functions will contain '[native code]' when converted to a string.
+    // An overridden function will contain its own source code.
+    if (!func.toString().includes('[native code]')) {
+      console.log(`Function '${func.name}' appears to be overridden.`);
+      return true; // Found an overridden function, no need to check further.
+    }
+  }
+
+  // If the loop completes, all functions are native.
+  return false;
+}
+
 // How to use it:
 window.addEventListener('resize', detectDockedDevTools);
 detectDockedDevTools(); // Initial check
