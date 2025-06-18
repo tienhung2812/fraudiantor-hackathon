@@ -253,6 +253,12 @@ class FraudDetector {
             signatureIndicators.push('DevTools signature: accuracy exactly 150m detected');
         }
 
+        // DevTools/Vytal extension signature: accuracy exactly 1
+        if (this.locationData.accuracy === 1) {
+            signatureScore += 60;
+            signatureIndicators.push('DevTools/Vytal extension signature: accuracy exactly 1m detected');
+        }
+
         // DevTools default coordinates detection
         const devToolsDefaults = [
             { lat: 37.4224764, lng: -122.0842499, name: 'Google HQ (DevTools default)' },
@@ -487,7 +493,8 @@ class FraudDetector {
         const hasDevToolsSignature = spoofingIndicators.some(indicator =>
             indicator.includes('DevTools signature') ||
             indicator.includes('DevTools default location') ||
-            indicator.includes('accuracy exactly 150')
+            indicator.includes('accuracy exactly 150') ||
+            indicator.includes('accuracy exactly 1')
         );
 
         return {
@@ -510,7 +517,7 @@ class FraudDetector {
     checkCriticalSpoofingIndicators(indicators) {
         const criticalPatterns = [
             'DevTools signature', 'DevTools default location', 'Timezone mismatch',
-            'accuracy exactly 150', 'Google HQ (DevTools default)',
+            'accuracy exactly 150', 'accuracy exactly 1', 'Google HQ (DevTools default)',
             'Mountain View (DevTools default)', 'San Francisco (DevTools default)',
             'New York (DevTools default)', 'London (DevTools default)',
             'Android Emulator Default', 'Null Island (0,0)', 'Emulator coordinates detected'
