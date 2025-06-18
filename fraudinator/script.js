@@ -4,6 +4,296 @@ class FraudDetector {
         this.environmentData = {};
         this.suspicionScore = 0;
         this.detectionDetails = [];
+        this.devToolsDetected = false;
+        this.extensionDetected = false;
+        this.consoleOverridden = false;
+        this.initializeDetection();
+    }
+
+    initializeDetection() {
+        this.detectDevToolsInitial();
+        this.detectConsoleOverrides();
+        this.detectExtensionArtifacts();
+        this.setupAntiEvasion();
+    }
+
+    setupAntiEvasion() {
+        // Anti-evasion technique 1: Multiple detection attempts with random delays
+        setInterval(() => {
+            this.detectDevToolsRuntime();
+        }, Math.random() * 5000 + 2000);
+
+        // Anti-evasion technique 2: Function integrity checks
+        this.originalFunctions = {
+            getCurrentPosition: navigator.geolocation.getCurrentPosition,
+            toString: Function.prototype.toString,
+            apply: Function.prototype.apply,
+            call: Function.prototype.call
+        };
+
+        // Anti-evasion technique 3: DOM mutation observer for extension detection
+        if (window.MutationObserver) {
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.type === 'childList') {
+                        mutation.addedNodes.forEach((node) => {
+                            if (node.nodeType === 1 && node.hasAttribute) {
+                                this.checkForExtensionArtifacts(node);
+                            }
+                        });
+                    }
+                });
+            });
+            
+            observer.observe(document.documentElement, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['data-vytal', 'data-surfshark', 'data-location-guard']
+            });
+        }
+    }
+
+    detectDevToolsRuntime() {
+        // Runtime DevTools detection that bypasses common evasion attempts
+        const widthThreshold = window.outerWidth - window.innerWidth > 160;
+        const heightThreshold = window.outerHeight - window.innerHeight > 160;
+        
+        if ((widthThreshold || heightThreshold) && !this.devToolsDetected) {
+            this.devToolsDetected = true;
+            this.environmentData.devToolsScore += 25;
+            this.environmentData.devToolsIndicators.push('DevTools opened during session');
+        }
+    }
+
+    checkForExtensionArtifacts(node) {
+        // Check for extension-injected elements
+        const extensionAttributes = [
+            'data-vytal', 'data-surfshark', 'data-location-guard', 
+            'data-change-location', 'data-extension', 'data-vpn'
+        ];
+        
+        extensionAttributes.forEach(attr => {
+            if (node.hasAttribute && node.hasAttribute(attr)) {
+                this.extensionDetected = true;
+                this.environmentData.extensionScore += 20;
+                this.environmentData.extensionIndicators.push(`Extension artifact detected: ${attr}`);
+            }
+        });
+    }
+
+    detectDevToolsInitial() {
+        const devToolsIndicators = [];
+        let devToolsScore = 0;
+
+        // Method 1: Timing-based detection
+        const startTime = performance.now();
+        debugger;
+        const endTime = performance.now();
+        const timeDiff = endTime - startTime;
+        
+        if (timeDiff > 100) {
+            devToolsScore += 30;
+            devToolsIndicators.push('DevTools detected via debugger timing');
+            this.devToolsDetected = true;
+        }
+
+        // Method 2: Window size detection
+        const windowHeight = window.outerHeight - window.innerHeight;
+        const windowWidth = window.outerWidth - window.innerWidth;
+        
+        if (windowHeight > 200 || windowWidth > 200) {
+            devToolsScore += 20;
+            devToolsIndicators.push('DevTools panel detected via window dimensions');
+            this.devToolsDetected = true;
+        }
+
+        // Method 3: Function override detection
+        const originalToString = Function.prototype.toString;
+        const overrideTest = () => {};
+        
+        if (overrideTest.toString() !== originalToString.call(overrideTest)) {
+            devToolsScore += 25;
+            devToolsIndicators.push('Function toString override detected');
+        }
+
+        // Method 4: Console detection
+        let consoleDetected = false;
+        const originalConsole = console.log;
+        console.log = function(...args) {
+            consoleDetected = true;
+            return originalConsole.apply(console, args);
+        };
+        
+        console.log('');
+        console.log = originalConsole;
+        
+        if (consoleDetected) {
+            devToolsScore += 15;
+            devToolsIndicators.push('Console usage detected');
+        }
+
+        // Method 5: DevTools-specific globals detection
+        if (window.devtools || window.__REACT_DEVTOOLS_GLOBAL_HOOK__ || window.__VUE_DEVTOOLS_GLOBAL_HOOK__) {
+            devToolsScore += 20;
+            devToolsIndicators.push('DevTools global objects detected');
+            this.devToolsDetected = true;
+        }
+
+        this.environmentData.devToolsScore = devToolsScore;
+        this.environmentData.devToolsIndicators = devToolsIndicators;
+        this.environmentData.devToolsDetected = this.devToolsDetected;
+    }
+
+    detectConsoleOverrides() {
+        const consoleOverrides = [];
+        let overrideScore = 0;
+
+        // Check if console methods have been overridden
+        const nativeToString = Function.prototype.toString;
+        const consoleMethods = ['log', 'warn', 'error', 'info', 'debug', 'trace'];
+        
+        consoleMethods.forEach(method => {
+            const consoleMethod = console[method];
+            const methodString = nativeToString.call(consoleMethod);
+            
+            if (!methodString.includes('[native code]')) {
+                overrideScore += 10;
+                consoleOverrides.push(`Console.${method} has been overridden`);
+                this.consoleOverridden = true;
+            }
+        });
+
+        // Check for function modification detection
+        const testFunction = function() {};
+        const originalString = testFunction.toString();
+        testFunction.toString = () => 'modified';
+        
+        if (testFunction.toString() !== originalString) {
+            overrideScore += 15;
+            consoleOverrides.push('Function toString modification detected');
+        }
+
+        this.environmentData.consoleOverrideScore = overrideScore;
+        this.environmentData.consoleOverrides = consoleOverrides;
+    }
+
+    detectExtensionArtifacts() {
+        const extensionIndicators = [];
+        let extensionScore = 0;
+
+        // Vytal extension detection
+        if (window.vytal || document.querySelector('[data-vytal]') || 
+            document.documentElement.getAttribute('data-vytal')) {
+            extensionScore += 40;
+            extensionIndicators.push('Vytal extension detected');
+            this.extensionDetected = true;
+        }
+
+        // Location Guard detection
+        if (window.locationGuard || navigator.geolocation.getCurrentPosition.toString().includes('locationguard')) {
+            extensionScore += 35;
+            extensionIndicators.push('Location Guard extension detected');
+            this.extensionDetected = true;
+        }
+
+        // Change Location detection
+        if (window.changeLocation || document.querySelector('[data-change-location]')) {
+            extensionScore += 35;
+            extensionIndicators.push('Change Location extension detected');
+            this.extensionDetected = true;
+        }
+
+        // SurfShark extension detection
+        if (window.surfshark || document.querySelector('[data-surfshark]') ||
+            document.documentElement.hasAttribute('data-surfshark-vpn')) {
+            extensionScore += 30;
+            extensionIndicators.push('SurfShark extension detected');
+            this.extensionDetected = true;
+        }
+
+        // Generic extension detection via DOM modifications
+        const extensionElements = document.querySelectorAll('[data-extension], [data-vpn], [data-location-spoof]');
+        if (extensionElements.length > 0) {
+            extensionScore += 20;
+            extensionIndicators.push('Generic location spoofing extension detected');
+            this.extensionDetected = true;
+        }
+
+        // Check for modified geolocation API
+        if (navigator.geolocation.getCurrentPosition.toString().length > 100) {
+            extensionScore += 25;
+            extensionIndicators.push('Geolocation API appears to be modified');
+            this.extensionDetected = true;
+        }
+
+        // Check for WebRTC modifications (common in VPN extensions)
+        if (window.RTCPeerConnection && 
+            window.RTCPeerConnection.prototype.createDataChannel.toString().includes('native') === false) {
+            extensionScore += 20;
+            extensionIndicators.push('WebRTC modifications detected (possible VPN)');
+        }
+
+        this.environmentData.extensionScore = extensionScore;
+        this.environmentData.extensionIndicators = extensionIndicators;
+    }
+
+    detectLocationSignatures() {
+        if (!this.locationData) return { signatureScore: 0, signatureIndicators: [] };
+
+        const signatureIndicators = [];
+        let signatureScore = 0;
+
+        // DevTools signature: accuracy exactly 150
+        if (this.locationData.accuracy === 150) {
+            signatureScore += 50;
+            signatureIndicators.push('DevTools signature: accuracy exactly 150m detected');
+        }
+
+        // DevTools default coordinates detection
+        const devToolsDefaults = [
+            { lat: 37.4224764, lng: -122.0842499, name: 'Google HQ (DevTools default)' },
+            { lat: 37.386052, lng: -122.083851, name: 'Mountain View (DevTools default)' },
+            { lat: 37.7749, lng: -122.4194, name: 'San Francisco (DevTools default)' },
+            { lat: 40.7128, lng: -74.0060, name: 'New York (DevTools default)' },
+            { lat: 51.5074, lng: -0.1278, name: 'London (DevTools default)' }
+        ];
+
+        const currentLat = this.locationData.latitude;
+        const currentLng = this.locationData.longitude;
+
+        devToolsDefaults.forEach(coord => {
+            if (Math.abs(currentLat - coord.lat) < 0.0001 && 
+                Math.abs(currentLng - coord.lng) < 0.0001) {
+                signatureScore += 60;
+                signatureIndicators.push(`DevTools default location detected: ${coord.name}`);
+            }
+        });
+
+        // Check for unrealistic precision patterns
+        const latStr = currentLat.toString();
+        const lngStr = currentLng.toString();
+        
+        if (latStr.includes('.000000') || lngStr.includes('.000000')) {
+            signatureScore += 30;
+            signatureIndicators.push('Unrealistic coordinate precision detected');
+        }
+
+        // Check for common emulator coordinates
+        const emulatorCoords = [
+            { lat: 0, lng: 0, name: 'Null Island (0,0)' },
+            { lat: 37.421998333333335, lng: -122.08400000000002, name: 'Android Emulator Default' }
+        ];
+
+        emulatorCoords.forEach(coord => {
+            if (Math.abs(currentLat - coord.lat) < 0.001 && 
+                Math.abs(currentLng - coord.lng) < 0.001) {
+                signatureScore += 40;
+                signatureIndicators.push(`Emulator coordinates detected: ${coord.name}`);
+            }
+        });
+
+        return { signatureScore, signatureIndicators };
     }
 
     async analyzeLocation() {
@@ -161,6 +451,11 @@ class FraudDetector {
             spoofingIndicators.push('Location appears to be in suspicious area');
         }
 
+        // Add location signature detection
+        const signatureDetection = this.detectLocationSignatures();
+        spoofingScore += signatureDetection.signatureScore;
+        spoofingIndicators.push(...signatureDetection.signatureIndicators);
+
         return {
             spoofingScore,
             spoofingIndicators,
@@ -208,8 +503,21 @@ class FraudDetector {
             // Analyze location spoofing
             const locationAnalysis = await this.detectLocationSpoofing();
             
-            // Calculate overall scores
-            const totalSuspicion = envData.rdpScore + locationAnalysis.spoofingScore;
+            // Calculate overall scores including new detection methods
+            const totalSuspicion = envData.rdpScore + 
+                                 locationAnalysis.spoofingScore + 
+                                 this.environmentData.devToolsScore + 
+                                 this.environmentData.consoleOverrideScore + 
+                                 this.environmentData.extensionScore;
+            
+            // Combine all indicators
+            const allIndicators = [
+                ...locationAnalysis.spoofingIndicators,
+                ...envData.rdpIndicators,
+                ...this.environmentData.devToolsIndicators,
+                ...this.environmentData.consoleOverrides,
+                ...this.environmentData.extensionIndicators
+            ];
             
             return {
                 location: {
@@ -230,9 +538,25 @@ class FraudDetector {
                     resolution: `${envData.screen.width}x${envData.screen.height}`,
                     timezone: envData.timezone
                 },
+                devTools: {
+                    detected: this.environmentData.devToolsDetected,
+                    score: this.environmentData.devToolsScore,
+                    indicators: this.environmentData.devToolsIndicators
+                },
+                console: {
+                    overridden: this.consoleOverridden,
+                    score: this.environmentData.consoleOverrideScore,
+                    indicators: this.environmentData.consoleOverrides
+                },
+                extensions: {
+                    detected: this.extensionDetected,
+                    score: this.environmentData.extensionScore,
+                    indicators: this.environmentData.extensionIndicators
+                },
                 overall: {
                     suspicionScore: totalSuspicion,
-                    riskLevel: this.getRiskLevel(totalSuspicion)
+                    riskLevel: this.getRiskLevel(totalSuspicion),
+                    allIndicators: allIndicators
                 }
             };
         } catch (error) {
@@ -308,26 +632,46 @@ class UIController {
             Response Time: ${analysis.location.responseTime}
         `;
 
-        // Environment analysis
+        // Environment analysis with enhanced detection info
         const envType = analysis.environment.isRemoteDesktop ? 'REMOTE DESKTOP DETECTED' : 'LOCAL DESKTOP';
+        const devToolsStatus = analysis.devTools.detected ? '⚠️ DEV TOOLS DETECTED' : '✅ No Dev Tools';
+        const extensionStatus = analysis.extensions.detected ? '⚠️ EXTENSIONS DETECTED' : '✅ No Extensions';
+        const consoleStatus = analysis.console.overridden ? '⚠️ CONSOLE OVERRIDE' : '✅ Console Normal';
+        
         environmentStatus.innerHTML = `
             <strong>${envType}</strong><br>
             Platform: ${analysis.environment.platform}<br>
             Resolution: ${analysis.environment.resolution}<br>
-            Timezone: ${analysis.environment.timezone}
+            Timezone: ${analysis.environment.timezone}<br><br>
+            <strong>Advanced Detection:</strong><br>
+            ${devToolsStatus}<br>
+            ${extensionStatus}<br>
+            ${consoleStatus}
         `;
 
-        // Apply appropriate styling
+        // Apply appropriate styling based on overall risk
+        const hasHighRisk = analysis.devTools.detected || analysis.extensions.detected || 
+                           analysis.console.overridden || analysis.location.isSpoofed;
+        
         locationResult.className = `result-card ${this.getStatusClass(analysis.location.isSpoofed)}`;
-        environmentResult.className = `result-card ${this.getStatusClass(analysis.environment.isRemoteDesktop)}`;
+        environmentResult.className = `result-card ${this.getStatusClass(hasHighRisk)}`;
 
-        // Detection details
-        const allIndicators = [...analysis.location.indicators, ...analysis.environment.indicators];
+        // Enhanced detection details
+        const detectionBreakdown = `
+            <strong>Detection Breakdown:</strong><br>
+            • Location Spoofing: ${analysis.location.spoofingScore} points<br>
+            • Remote Desktop: ${analysis.environment.rdpScore} points<br>
+            • Developer Tools: ${analysis.devTools.score} points<br>
+            • Extension Detection: ${analysis.extensions.score} points<br>
+            • Console Override: ${analysis.console.score} points<br>
+        `;
+        
         detectionDetails.innerHTML = `
-            <strong>Risk Level: ${analysis.overall.riskLevel}</strong> (Score: ${analysis.overall.suspicionScore})<br><br>
-            ${allIndicators.length > 0 ? 
-                '<strong>Detected Indicators:</strong><ul>' + 
-                allIndicators.map(indicator => `<li>${indicator}</li>`).join('') + 
+            <strong>Risk Level: ${analysis.overall.riskLevel}</strong> (Total Score: ${analysis.overall.suspicionScore})<br><br>
+            ${detectionBreakdown}<br>
+            ${analysis.overall.allIndicators.length > 0 ? 
+                '<strong>All Detected Indicators:</strong><ul>' + 
+                analysis.overall.allIndicators.map(indicator => `<li>${indicator}</li>`).join('') + 
                 '</ul>' : 
                 'No suspicious indicators detected.'
             }
