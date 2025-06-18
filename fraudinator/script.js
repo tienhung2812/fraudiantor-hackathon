@@ -435,12 +435,14 @@ class FraudDetector {
         }
 
         try {
-            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            const timezoneFromCoords = await this.getTimezoneFromCoords(lat, lng);
+            const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const browserOffset = this.getTimezoneOffsetFromName(browserTimezone);
+            const locationOffset = await this.getTimezoneFromCoords(lat, lng);
 
-            if (timezone !== timezoneFromCoords) {
+            // Compare UTC offsets instead of timezone names
+            if (Math.abs(browserOffset - locationOffset) > 1) { // Allow 1 hour difference for DST
                 spoofingScore += 25;
-                spoofingIndicators.push(`Timezone mismatch: Browser(${timezone}) vs Location(${timezoneFromCoords})`);
+                spoofingIndicators.push(`Timezone mismatch: Browser(${browserTimezone}/${browserOffset >= 0 ? '+' : ''}${browserOffset}) vs Location(UTC${locationOffset >= 0 ? '+' : ''}${locationOffset})`);
             }
         } catch (e) {
             // Timezone API might fail
@@ -503,6 +505,47 @@ class FraudDetector {
         return indicators.some(indicator =>
             criticalPatterns.some(pattern => indicator.includes(pattern))
         );
+    }
+
+    getTimezoneOffsetFromName(timezoneName) {
+        // Get the current UTC offset for a timezone name (e.g., "Asia/Saigon" -> 7)
+        try {
+            // Use a specific date to check timezone offset
+            const testDate = new Date('2024-01-15T12:00:00Z'); // Use a winter date to avoid DST issues
+            
+            // Get the time in the target timezone
+            const formatter = new Intl.DateTimeFormat('en-CA', {
+                timeZone: timezoneName,
+                timeZoneName: 'longOffset'
+            });
+            
+            const parts = formatter.formatToParts(testDate);
+            const offsetPart = parts.find(part => part.type === 'timeZoneName');
+            
+            if (offsetPart && offsetPart.value) {
+                // Parse formats like "GMT+7", "GMT-5", etc.
+                const match = offsetPart.value.match(/GMT([+-])(\d+)(:(\d+))?/);
+                if (match) {
+                    const sign = match[1] === '+' ? 1 : -1;
+                    const hours = parseInt(match[2], 10);
+                    const minutes = match[4] ? parseInt(match[4], 10) : 0;
+                    return sign * (hours + minutes / 60);
+                }
+            }
+            
+            // Fallback: calculate manually
+            if (timezoneName.toLowerCase() === 'utc') {
+                return 0;
+            }
+            
+            const utcDate = new Date(testDate.toISOString());
+            const localDate = new Date(testDate.toLocaleString('en-CA', { timeZone: timezoneName }));
+            const diffMs = localDate.getTime() - utcDate.getTime();
+            return diffMs / (1000 * 60 * 60);
+        } catch (e) {
+            // Final fallback: use browser's current offset
+            return -new Date().getTimezoneOffset() / 60;
+        }
     }
     
     /**
