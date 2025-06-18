@@ -762,6 +762,11 @@ class UIController {
         this.map = null;
         this.marker = null;
         this.initializeEventListeners();
+        
+        // Set up DevTools detector reference
+        if (window.DevToolsDetector) {
+            window.DevToolsDetector.setUIController(this);
+        }
     }
 
     initializeEventListeners() {
@@ -883,6 +888,36 @@ class UIController {
         return isSuspicious ? 'status-fake' : 'status-authentic';
     }
 
+    updateDevToolsStatus(devToolsDetected) {
+        // Only update if results are currently displayed
+        const results = document.getElementById('results');
+        if (results.style.display !== 'block') return;
+
+        const environmentStatus = document.getElementById('environmentStatus');
+        const environmentResult = document.getElementById('environmentResult');
+        
+        if (environmentStatus && environmentResult) {
+            // Get current content and update DevTools status
+            const currentHTML = environmentStatus.innerHTML;
+            const devToolsStatus = devToolsDetected ? 
+                '⚠️ DEV TOOLS DETECTED (LIVE)' : 
+                '✅ Dev Tools Closed (but was detected)';
+            
+            // Replace the DevTools status line - handle multiple possible patterns
+            const updatedHTML = currentHTML.replace(
+                /(⚠️ DEV TOOLS DETECTED.*?|✅ No Dev Tools|✅ Dev Tools Closed.*?)<br>/,
+                `${devToolsStatus}<br>`
+            );
+            
+            environmentStatus.innerHTML = updatedHTML;
+            
+            // Keep card styling as suspicious if DevTools was ever detected
+            if (this.detector && this.detector.devToolsDetected) {
+                environmentResult.className = 'result-card status-fake';
+            }
+        }
+    }
+
     displayMap(latitude, longitude) {
         const mapContainer = document.getElementById('mapContainer');
         
@@ -934,7 +969,13 @@ class UIController {
     }
 }
 
+
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
     new UIController();
+    
+    // Initialize DevTools detection
+    if (window.DevToolsDetector) {
+        window.DevToolsDetector.initialize();
+    }
 });
