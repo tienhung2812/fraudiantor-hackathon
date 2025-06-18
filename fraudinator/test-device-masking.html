@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Masking Detector Test</title>
+</head>
+<body>
+    <h1>Device Masking Detector Test</h1>
+    <button id="testBtn">Test Device Masking Detection</button>
+    <div id="results"></div>
+
+    <script src="device-masking-detector.js"></script>
+    <script>
+        document.getElementById('testBtn').addEventListener('click', async () => {
+            const detector = new DeviceDataMaskingDetector();
+            const results = await detector.runChecks();
+            
+            document.getElementById('results').innerHTML = `
+                <h3>Results:</h3>
+                <p><strong>Score:</strong> ${results.score}</p>
+                <p><strong>Is Masked:</strong> ${results.isMasked}</p>
+                <h4>Indicators:</h4>
+                <ul>
+                    ${results.indicators.map(indicator => `<li>${indicator}</li>`).join('')}
+                </ul>
+                <h4>Details:</h4>
+                <pre>${JSON.stringify(results.details, null, 2)}</pre>
+            `;
+        });
+    </script>
+</body>
+</html>
