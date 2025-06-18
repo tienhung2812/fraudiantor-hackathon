@@ -7,11 +7,12 @@ class FraudDetector {
         this.devToolsDetected = false;
         this.extensionDetected = false;
         this.consoleOverridden = false;
-        // Behavioral analysis properties
         this.behavioralIndicators = [];
         this.behavioralScore = 0;
         this.locationSpoofedByBehavior = false;
         this.extensionDetector = new ExtensionDetector();
+         this.vpnDetected = false;
+        this.vpnDetector = new VPNDetector();
         this.initializeDetection();
     }
 
@@ -19,6 +20,7 @@ class FraudDetector {
         this.detectDevToolsInitial();
         this.detectConsoleOverrides();
         this.detectExtensionArtifacts();
+        this.detectVPN();
         this.setupAntiEvasion();
     }
 
@@ -199,6 +201,17 @@ class FraudDetector {
         this.environmentData.extensionScore = detectionResult.score;
         this.environmentData.extensionIndicators = detectionResult.indicators;
         this.extensionDetected = detectionResult.detected;
+    }
+
+    detectVPN() {
+        // Use the dedicated VPNDetector class
+        const detectionResult = this.vpnDetector.performFullVPNDetection();
+        
+        this.environmentData.vpnScore = detectionResult.score;
+        this.environmentData.vpnIndicators = detectionResult.indicators;
+        this.environmentData.vpnDetected = detectionResult.detected;
+        this.environmentData.detectedVpnProvider = detectionResult.provider;
+        this.vpnDetected = detectionResult.detected;
     }
 
 
@@ -565,7 +578,8 @@ class FraudDetector {
                                  locationAnalysis.spoofingScore + 
                                  (this.environmentData.devToolsScore || 0) + 
                                  (this.environmentData.consoleOverrideScore || 0) + 
-                                 (this.environmentData.extensionScore || 0);
+                                 (this.environmentData.extensionScore || 0) +
+                                 (this.environmentData.vpnScore || 0);
             
             // Combine all indicators with safe defaults
             const allIndicators = [
@@ -573,7 +587,8 @@ class FraudDetector {
                 ...envData.rdpIndicators,
                 ...(this.environmentData.devToolsIndicators || []),
                 ...(this.environmentData.consoleOverrides || []),
-                ...(this.environmentData.extensionIndicators || [])
+                ...(this.environmentData.extensionIndicators || []),
+                ...(this.environmentData.vpnIndicators || [])
             ];
             
             return {
@@ -609,6 +624,12 @@ class FraudDetector {
                     detected: this.extensionDetected || false,
                     score: this.environmentData.extensionScore || 0,
                     indicators: this.environmentData.extensionIndicators || []
+                },
+                vpn: {
+                    detected: this.vpnDetected || false,
+                    score: this.environmentData.vpnScore || 0,
+                    indicators: this.environmentData.vpnIndicators || [],
+                    provider: this.environmentData.detectedVpnProvider || null
                 },
                 overall: {
                     suspicionScore: totalSuspicion,
@@ -712,6 +733,9 @@ class UIController {
         const devToolsStatus = analysis.devTools.detected ? '⚠️ DEV TOOLS DETECTED' : '✅ No Dev Tools';
         const extensionStatus = analysis.extensions.detected ? '⚠️ EXTENSIONS DETECTED' : '✅ No Extensions';
         const consoleStatus = analysis.console.overridden ? '⚠️ CONSOLE OVERRIDE' : '✅ Console Normal';
+        const vpnStatus = analysis.vpn.detected ? 
+            `🚨 VPN DETECTED${analysis.vpn.provider ? ` (${analysis.vpn.provider})` : ''}` : 
+            '✅ No VPN';
         
         environmentStatus.innerHTML = `
             <strong>${envType}</strong><br>
@@ -721,12 +745,13 @@ class UIController {
             <strong>Advanced Detection:</strong><br>
             ${devToolsStatus}<br>
             ${extensionStatus}<br>
-            ${consoleStatus}
+            ${consoleStatus}<br>
+            ${vpnStatus}
         `;
 
         // Apply appropriate styling based on overall risk
         const hasHighRisk = analysis.devTools.detected || analysis.extensions.detected || 
-                           analysis.console.overridden || analysis.location.isSpoofed;
+                           analysis.console.overridden || analysis.location.isSpoofed || analysis.vpn.detected;
         
         locationResult.className = `result-card ${this.getStatusClass(analysis.location.isSpoofed)}`;
         environmentResult.className = `result-card ${this.getStatusClass(hasHighRisk)}`;
@@ -739,6 +764,7 @@ class UIController {
             • Developer Tools: ${analysis.devTools.score} points<br>
             • Extension Detection: ${analysis.extensions.score} points<br>
             • Console Override: ${analysis.console.score} points<br>
+            • VPN Detection: ${analysis.vpn.score} points<br>
         `;
         
         detectionDetails.innerHTML = `
