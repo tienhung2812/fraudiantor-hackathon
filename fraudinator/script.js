@@ -7,6 +7,7 @@ class FraudDetector {
         this.devToolsDetected = false;
         this.extensionDetected = false;
         this.consoleOverridden = false;
+        this.extensionDetector = new ExtensionDetector();
         this.initializeDetection();
     }
 
@@ -98,7 +99,6 @@ class FraudDetector {
 
         // Method 1: Timing-based detection
         const startTime = performance.now();
-        debugger;
         const endTime = performance.now();
         const timeDiff = endTime - startTime;
         
@@ -189,64 +189,14 @@ class FraudDetector {
     }
 
     detectExtensionArtifacts() {
-        const extensionIndicators = [];
-        let extensionScore = 0;
-
-        // Vytal extension detection
-        if (window.vytal || document.querySelector('[data-vytal]') || 
-            document.documentElement.getAttribute('data-vytal')) {
-            extensionScore += 40;
-            extensionIndicators.push('Vytal extension detected');
-            this.extensionDetected = true;
-        }
-
-        // Location Guard detection
-        if (window.locationGuard || navigator.geolocation.getCurrentPosition.toString().includes('locationguard')) {
-            extensionScore += 35;
-            extensionIndicators.push('Location Guard extension detected');
-            this.extensionDetected = true;
-        }
-
-        // Change Location detection
-        if (window.changeLocation || document.querySelector('[data-change-location]')) {
-            extensionScore += 35;
-            extensionIndicators.push('Change Location extension detected');
-            this.extensionDetected = true;
-        }
-
-        // SurfShark extension detection
-        if (window.surfshark || document.querySelector('[data-surfshark]') ||
-            document.documentElement.hasAttribute('data-surfshark-vpn')) {
-            extensionScore += 30;
-            extensionIndicators.push('SurfShark extension detected');
-            this.extensionDetected = true;
-        }
-
-        // Generic extension detection via DOM modifications
-        const extensionElements = document.querySelectorAll('[data-extension], [data-vpn], [data-location-spoof]');
-        if (extensionElements.length > 0) {
-            extensionScore += 20;
-            extensionIndicators.push('Generic location spoofing extension detected');
-            this.extensionDetected = true;
-        }
-
-        // Check for modified geolocation API
-        if (navigator.geolocation.getCurrentPosition.toString().length > 100) {
-            extensionScore += 25;
-            extensionIndicators.push('Geolocation API appears to be modified');
-            this.extensionDetected = true;
-        }
-
-        // Check for WebRTC modifications (common in VPN extensions)
-        if (window.RTCPeerConnection && 
-            window.RTCPeerConnection.prototype.createDataChannel.toString().includes('native') === false) {
-            extensionScore += 20;
-            extensionIndicators.push('WebRTC modifications detected (possible VPN)');
-        }
-
-        this.environmentData.extensionScore = extensionScore;
-        this.environmentData.extensionIndicators = extensionIndicators;
+        // Use the dedicated ExtensionDetector class
+        const detectionResult = this.extensionDetector.performFullExtensionDetection();
+        
+        this.environmentData.extensionScore = detectionResult.score;
+        this.environmentData.extensionIndicators = detectionResult.indicators;
+        this.extensionDetected = detectionResult.detected;
     }
+
 
     detectLocationSignatures() {
         if (!this.locationData) return { signatureScore: 0, signatureIndicators: [] };
