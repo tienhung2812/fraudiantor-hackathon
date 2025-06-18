@@ -61,6 +61,11 @@ class FraudDetector {
         
         if ((widthThreshold || heightThreshold) && !this.devToolsDetected) {
             this.devToolsDetected = true;
+            
+            // Initialize arrays if they don't exist
+            if (!this.environmentData.devToolsScore) this.environmentData.devToolsScore = 0;
+            if (!this.environmentData.devToolsIndicators) this.environmentData.devToolsIndicators = [];
+            
             this.environmentData.devToolsScore += 25;
             this.environmentData.devToolsIndicators.push('DevTools opened during session');
         }
@@ -76,6 +81,11 @@ class FraudDetector {
         extensionAttributes.forEach(attr => {
             if (node.hasAttribute && node.hasAttribute(attr)) {
                 this.extensionDetected = true;
+                
+                // Initialize arrays if they don't exist
+                if (!this.environmentData.extensionScore) this.environmentData.extensionScore = 0;
+                if (!this.environmentData.extensionIndicators) this.environmentData.extensionIndicators = [];
+                
                 this.environmentData.extensionScore += 20;
                 this.environmentData.extensionIndicators.push(`Extension artifact detected: ${attr}`);
             }
@@ -503,20 +513,20 @@ class FraudDetector {
             // Analyze location spoofing
             const locationAnalysis = await this.detectLocationSpoofing();
             
-            // Calculate overall scores including new detection methods
+            // Calculate overall scores including new detection methods with safe defaults
             const totalSuspicion = envData.rdpScore + 
                                  locationAnalysis.spoofingScore + 
-                                 this.environmentData.devToolsScore + 
-                                 this.environmentData.consoleOverrideScore + 
-                                 this.environmentData.extensionScore;
+                                 (this.environmentData.devToolsScore || 0) + 
+                                 (this.environmentData.consoleOverrideScore || 0) + 
+                                 (this.environmentData.extensionScore || 0);
             
-            // Combine all indicators
+            // Combine all indicators with safe defaults
             const allIndicators = [
                 ...locationAnalysis.spoofingIndicators,
                 ...envData.rdpIndicators,
-                ...this.environmentData.devToolsIndicators,
-                ...this.environmentData.consoleOverrides,
-                ...this.environmentData.extensionIndicators
+                ...(this.environmentData.devToolsIndicators || []),
+                ...(this.environmentData.consoleOverrides || []),
+                ...(this.environmentData.extensionIndicators || [])
             ];
             
             return {
@@ -539,19 +549,19 @@ class FraudDetector {
                     timezone: envData.timezone
                 },
                 devTools: {
-                    detected: this.environmentData.devToolsDetected,
-                    score: this.environmentData.devToolsScore,
-                    indicators: this.environmentData.devToolsIndicators
+                    detected: this.environmentData.devToolsDetected || false,
+                    score: this.environmentData.devToolsScore || 0,
+                    indicators: this.environmentData.devToolsIndicators || []
                 },
                 console: {
-                    overridden: this.consoleOverridden,
-                    score: this.environmentData.consoleOverrideScore,
-                    indicators: this.environmentData.consoleOverrides
+                    overridden: this.consoleOverridden || false,
+                    score: this.environmentData.consoleOverrideScore || 0,
+                    indicators: this.environmentData.consoleOverrides || []
                 },
                 extensions: {
-                    detected: this.extensionDetected,
-                    score: this.environmentData.extensionScore,
-                    indicators: this.environmentData.extensionIndicators
+                    detected: this.extensionDetected || false,
+                    score: this.environmentData.extensionScore || 0,
+                    indicators: this.environmentData.extensionIndicators || []
                 },
                 overall: {
                     suspicionScore: totalSuspicion,
