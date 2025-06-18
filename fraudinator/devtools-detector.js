@@ -97,7 +97,7 @@ function detectDevTools() {
 
 // Handle DevTools detection
 function handleDevToolsDetected(method) {
-  console.log(`DevTools detected via ${method} method`);
+  console.log(`DevTools detected via ${method} method - MARKING SESSION AS SPOOFED`);
   
   // Update the detector if available
   if (globalUIController && globalUIController.detector) {
@@ -113,10 +113,40 @@ function handleDevToolsDetected(method) {
       
       globalUIController.detector.environmentData.devToolsScore += 25;
       globalUIController.detector.environmentData.devToolsIndicators.push(`DevTools detected via ${method} (real-time detection)`);
+      
+      // CRITICAL: Mark location as spoofed when DevTools is detected
+      markLocationAsSpoofed(method);
     }
     
     // Always update UI when DevTools is detected
     globalUIController.updateDevToolsStatus(true);
+  }
+}
+
+// Mark the entire session location as spoofed due to DevTools detection
+function markLocationAsSpoofed(detectionMethod) {
+  if (globalUIController && globalUIController.detector) {
+    // Force location to be marked as spoofed
+    globalUIController.detector.locationSpoofedByDevTools = true;
+    
+    // Add high spoofing score
+    if (!globalUIController.detector.locationSpoofingScore) {
+      globalUIController.detector.locationSpoofingScore = 0;
+    }
+    globalUIController.detector.locationSpoofingScore += 100; // Maximum penalty
+    
+    // Add critical indicator
+    if (!globalUIController.detector.locationSpoofingIndicators) {
+      globalUIController.detector.locationSpoofingIndicators = [];
+    }
+    globalUIController.detector.locationSpoofingIndicators.push(
+      `CRITICAL: DevTools detected (${detectionMethod}) - Location cannot be trusted`
+    );
+    
+    // Update UI to show location as spoofed
+    if (globalUIController.updateLocationSpoofingStatus) {
+      globalUIController.updateLocationSpoofingStatus(true);
+    }
   }
 }
 

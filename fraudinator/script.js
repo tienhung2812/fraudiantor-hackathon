@@ -7,6 +7,10 @@ class FraudDetector {
         this.devToolsDetected = false;
         this.extensionDetected = false;
         this.consoleOverridden = false;
+        // Behavioral analysis properties
+        this.behavioralIndicators = [];
+        this.behavioralScore = 0;
+        this.locationSpoofedByBehavior = false;
         this.extensionDetector = new ExtensionDetector();
         this.initializeDetection();
     }
@@ -416,11 +420,62 @@ class FraudDetector {
         spoofingScore += signatureDetection.signatureScore;
         spoofingIndicators.push(...signatureDetection.signatureIndicators);
 
+        // CRITICAL: Check if DevTools was detected - auto-mark as spoofed
+        if (this.locationSpoofedByDevTools) {
+            spoofingScore += this.locationSpoofingScore || 100;
+            if (this.locationSpoofingIndicators) {
+                spoofingIndicators.push(...this.locationSpoofingIndicators);
+            }
+        }
+
+        // BEHAVIORAL: Add behavioral analysis results
+        if (this.behavioralScore > 0) {
+            spoofingScore += this.behavioralScore;
+            spoofingIndicators.push(...this.behavioralIndicators);
+        }
+
+        // Check for critical indicators that automatically mark location as spoofed
+        const criticalIndicators = this.checkCriticalSpoofingIndicators(spoofingIndicators);
+        const hasTimezoneIssue = spoofingIndicators.some(indicator => indicator.includes('Timezone mismatch'));
+        const hasDevToolsSignature = spoofingIndicators.some(indicator => 
+            indicator.includes('DevTools signature') || 
+            indicator.includes('DevTools default location') ||
+            indicator.includes('accuracy exactly 150')
+        );
+
         return {
             spoofingScore,
             spoofingIndicators,
-            isLocationSpoofed: spoofingScore >= 20
+            isLocationSpoofed: spoofingScore >= 20 || 
+                              this.locationSpoofedByDevTools || 
+                              this.locationSpoofedByBehavior ||
+                              criticalIndicators ||
+                              hasTimezoneIssue ||
+                              hasDevToolsSignature
         };
+    }
+
+    checkCriticalSpoofingIndicators(indicators) {
+        // Define critical spoofing patterns that automatically mark location as fake
+        const criticalPatterns = [
+            'DevTools signature',
+            'DevTools default location',
+            'Timezone mismatch',
+            'accuracy exactly 150',
+            'Google HQ (DevTools default)',
+            'Mountain View (DevTools default)',
+            'San Francisco (DevTools default)',
+            'New York (DevTools default)',
+            'London (DevTools default)',
+            'Android Emulator Default',
+            'Null Island (0,0)',
+            'Emulator coordinates detected'
+        ];
+
+        // Check if any critical patterns are present
+        return indicators.some(indicator => 
+            criticalPatterns.some(pattern => indicator.includes(pattern))
+        );
     }
 
     async getTimezoneFromCoords(lat, lng) {
@@ -538,6 +593,14 @@ class UIController {
         this.detector = new FraudDetector();
         this.map = null;
         this.marker = null;
+        
+        // Initialize behavioral analyzer
+        this.behaviorAnalyzer = null;
+        if (window.LocationBehaviorAnalyzer) {
+            this.behaviorAnalyzer = new window.LocationBehaviorAnalyzer();
+            this.behaviorAnalyzer.setFraudDetector(this.detector);
+        }
+        
         this.initializeEventListeners();
         
         // Set up DevTools detector reference
@@ -561,6 +624,11 @@ class UIController {
             btn.disabled = true;
             loading.style.display = 'block';
             results.style.display = 'none';
+
+            // Start behavioral monitoring
+            if (this.behaviorAnalyzer) {
+                this.behaviorAnalyzer.startLocationMonitoring();
+            }
 
             // Perform analysis
             const analysis = await this.detector.performFullAnalysis();
@@ -588,8 +656,8 @@ class UIController {
         const environmentStatus = document.getElementById('environmentStatus');
         const detectionDetails = document.getElementById('detectionDetails');
 
-        // Location authenticity
-        const locationAuth = analysis.location.isSpoofed ? 'SUSPICIOUS - Potentially Spoofed' : 'AUTHENTIC';
+        // Location authenticity - BINARY: SPOOFED or AUTHENTIC only
+        const locationAuth = analysis.location.isSpoofed ? '🚨 SPOOFED' : '✅ AUTHENTIC';
         locationStatus.innerHTML = `
             <strong>${locationAuth}</strong><br>
             Coordinates: ${analysis.location.coordinates}<br>
@@ -651,18 +719,18 @@ class UIController {
         const environmentStatus = document.getElementById('environmentStatus');
         const detectionDetails = document.getElementById('detectionDetails');
 
-        locationStatus.innerHTML = '<strong>ERROR</strong><br>Could not determine location authenticity';
+        locationStatus.innerHTML = '<strong>🚨 SPOOFED</strong><br>Error occurred - Location cannot be verified';
         environmentStatus.innerHTML = '<strong>ERROR</strong><br>Could not analyze environment';
         detectionDetails.innerHTML = `<strong>Error:</strong> ${message}`;
 
-        document.getElementById('locationResult').className = 'result-card status-suspicious';
-        document.getElementById('environmentResult').className = 'result-card status-suspicious';
+        document.getElementById('locationResult').className = 'result-card status-fake';
+        document.getElementById('environmentResult').className = 'result-card status-fake';
 
         results.style.display = 'block';
     }
 
-    getStatusClass(isSuspicious) {
-        return isSuspicious ? 'status-fake' : 'status-authentic';
+    getStatusClass(isSpoofed) {
+        return isSpoofed ? 'status-fake' : 'status-authentic';
     }
 
     updateDevToolsStatus(devToolsDetected) {
@@ -691,6 +759,31 @@ class UIController {
             // Keep card styling as suspicious if DevTools was ever detected
             if (this.detector && this.detector.devToolsDetected) {
                 environmentResult.className = 'result-card status-fake';
+            }
+        }
+    }
+
+    updateLocationSpoofingStatus(locationSpoofed) {
+        // Only update if results are currently displayed
+        const results = document.getElementById('results');
+        if (results.style.display !== 'block') return;
+
+        const locationStatus = document.getElementById('locationStatus');
+        const locationResult = document.getElementById('locationResult');
+        
+        if (locationStatus && locationResult) {
+            // Get current content and update with critical DevTools detection
+            const currentHTML = locationStatus.innerHTML;
+            
+            if (locationSpoofed && this.detector && this.detector.locationSpoofedByDevTools) {
+                // Replace the authenticity status with critical warning
+                const updatedHTML = currentHTML.replace(
+                    /<strong>(✅ AUTHENTIC|🚨 SPOOFED)<\/strong>/,
+                    '<strong>🚨 SPOOFED - DEVTOOLS DETECTED</strong><br><span style="color: #dc3545; font-weight: bold;">Location cannot be trusted - DevTools allows geolocation manipulation</span>'
+                );
+                
+                locationStatus.innerHTML = updatedHTML;
+                locationResult.className = 'result-card status-fake';
             }
         }
     }
