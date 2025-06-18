@@ -4,6 +4,8 @@ function detectDevTools() {
 
   const startTime = new Date().getTime();
 
+  // The debugger statement will only pause execution if DevTools is open.
+  // debugger;
 
   const endTime = new Date().getTime();
 
